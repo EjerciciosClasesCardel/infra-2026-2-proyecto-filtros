@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: filtros-datos
+  namespace: filtros
+  labels:
+    app.kubernetes.io/part-of: filtros
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  # Se omite storageClassName para usar la clase por defecto del clúster.
+  # En GKE suele ser standard-rwo (PD CSI). 5 Gi alcanzan para 64 PPM de
+  # 1024x1024, sus PGM de salida y el CSV de resultados.

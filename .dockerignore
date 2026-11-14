@@ -1,0 +1,16 @@
+.git
+.gitignore
+**/__pycache__
+**/*.pyc
+motor/motor
+motor/comparar
+motor/generar
+motor/arnes
+motor/*.o
+*.ppm
+*.pgm
+entrada
+salida
+mediciones
+docs
+deploy

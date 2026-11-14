@@ -1,0 +1,60 @@
+name: filtros
+
+# El trabajador no monta ningún volumen: solo recibe y devuelve bytes. El
+# despachador es el único que ve entrada/, salida/ y mediciones/.
+services:
+  trabajador:
+    build:
+      context: ../..
+      dockerfile: trabajador/Dockerfile
+    image: filtros-trabajador:local-1
+    environment:
+      PUERTO: "8000"
+      OMP_NUM_THREADS: "${OMP_NUM_THREADS:-1}"
+      MAXIMO_EN_VUELO: "${MAXIMO_EN_VUELO:-2}"
+      FILTROS_POR_DEFECTO: "${FILTROS:-gris,gaussiano,sobel,otsu}"
+    expose:
+      - "8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/readyz', timeout=2)"
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+  despachador:
+    build:
+      context: ../..
+      dockerfile: despachador/Dockerfile
+    image: filtros-despachador:local-1
+    depends_on:
+      trabajador:
+        condition: service_healthy
+    environment:
+      ENTORNO: local
+      ENTRADA: /datos/entrada
+      SALIDA: /datos/salida
+      CSV_SERVICIO: /mediciones/servicio.csv
+      TRABAJADOR_URL: http://trabajador:8000
+      FILTROS: "${FILTROS:-gris,gaussiano,sobel,otsu}"
+      CONCURRENCIA: "${CONCURRENCIA:-8}"
+      IMAGENES: "${IMAGENES:-64}"
+      ANCHO: "${ANCHO:-1024}"
+      ALTO: "${ALTO:-1024}"
+      REINTENTOS: "${REINTENTOS:-30}"
+      ESPERA_REINTENTO: "${ESPERA_REINTENTO:-0.5}"
+    volumes:
+      - ../../entrada:/datos/entrada
+      - ../../salida:/datos/salida
+      - ../../mediciones:/mediciones
+    # El despachador escribe en los bind mounts del repositorio. Correrlo con
+    # el UID/GID del usuario local evita dejar archivos que después no se
+    # puedan borrar sin sudo. Se puede ajustar con UID=... GID=... al invocar
+    # correr.sh.
+    user: "${UID:-1000}:${GID:-1000}"
+    restart: "no"

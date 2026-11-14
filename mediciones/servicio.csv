@@ -1,0 +1,13 @@
+entorno,trabajadores,concurrencia,imagenes,segundos
+local-sin-docker,1,8,64,1.079
+local-sin-docker,1,8,64,1.092
+local-sin-docker,1,8,64,1.008
+local-sin-docker,4,8,64,0.399
+local-sin-docker,4,8,64,0.394
+local-sin-docker,4,8,64,0.401
+local,1,8,64,1.163
+local,4,8,64,0.443
+local,1,8,64,1.220
+local,1,8,64,1.291
+local,4,8,64,0.436
+local,4,8,64,0.448

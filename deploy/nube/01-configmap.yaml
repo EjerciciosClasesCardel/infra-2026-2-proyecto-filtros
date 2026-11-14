@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: filtros-config
+  namespace: filtros
+  labels:
+    app.kubernetes.io/part-of: filtros
+data:
+  # Hilos de OpenMP que usa cada proceso del motor en el trabajador.
+  OMP_NUM_THREADS: "2"
+  # Peticiones que un trabajador atiende a la vez.
+  MAXIMO_EN_VUELO: "1"
+  # Cadena de filtros por defecto del servicio.
+  FILTROS: "gris,gaussiano,sobel,otsu"
+  # Peticiones en vuelo del despachador. Con 3 réplicas y un proceso por
+  # trabajador, 6 deja dos peticiones encoladas por trabajador.
+  CONCURRENCIA: "6"
+  # Número de réplicas del Deployment. Se usa para etiquetar el CSV; si se
+  # cambia el número de réplicas, hay que cambiar también este valor.
+  TRABAJADORES: "3"
+  # Lote que se genera si el PVC no trae imágenes.
+  IMAGENES: "64"
+  ANCHO: "1024"
+  ALTO: "1024"

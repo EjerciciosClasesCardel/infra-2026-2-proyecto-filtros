@@ -5,8 +5,18 @@ motor/generar
 motor/arnes
 *.o
 
+# Python
+__pycache__/
+*.py[cod]
+
 # imágenes de trabajo: la de medición la escribe el generador
 *.ppm
 *.pgm
 !motor/tests/datos/*.ppm
 !motor/tests/datos/*.pgm
+
+# lotes locales: solo se versiona el marcador de cada directorio
+entrada/*
+!entrada/.gitkeep
+salida/*
+!salida/.gitkeep

@@ -1,0 +1,70 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: despachador
+  namespace: filtros
+  labels:
+    app: despachador
+    app.kubernetes.io/part-of: filtros
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app: despachador
+        app.kubernetes.io/part-of: filtros
+    spec:
+      restartPolicy: Never
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        # El PVC lo escribe el despachador; fsGroup lo hace escribible por el
+        # UID no privilegiado del contenedor.
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: despachador
+          image: ${IMAGEN_DESPACHADOR}
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: filtros-config
+          env:
+            - name: ENTORNO
+              value: gke
+            - name: ENTRADA
+              value: /datos/entrada
+            - name: SALIDA
+              value: /datos/salida
+            - name: CSV_SERVICIO
+              value: /datos/servicio.csv
+            - name: TRABAJADOR_URL
+              value: http://trabajador:8000
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: datos
+              mountPath: /datos
+            - name: temporal
+              mountPath: /tmp
+      volumes:
+        - name: datos
+          persistentVolumeClaim:
+            claimName: filtros-datos
+        - name: temporal
+          emptyDir: {}
