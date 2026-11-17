@@ -7,8 +7,8 @@ despachador que reparte el lote entre varios trabajadores.
 
 | Nombre completo | Código | Correo institucional |
 |---|---|---|
+|Yilmar Mauricio Riascos Moreno | 202459662 | yilmar.riascos@correounivalle.edu.co |
 | Juan esteban perez ramirez | 202459486 | juan.perez.ramirez@correounivalle.edu.co |
-|  |  |  |
 |  |  |  |
 
 El informe está en [`docs/`](docs/).
