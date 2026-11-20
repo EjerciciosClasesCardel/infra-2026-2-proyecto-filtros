@@ -18,6 +18,9 @@ Imagen caja_paralelo(const Imagen& e);
 // una pasada horizontal y otra vertical sobre el resultado intermedio.
 Imagen gaussiano_secuencial(const Imagen& e);
 Imagen gaussiano_paralelo(const Imagen& e);
+Imagen gaussiano_dos_pasadas_paralelo(const Imagen& e);
+Imagen gaussiano5x5_secuencial(const Imagen& e);
+Imagen gaussiano5x5_paralelo(const Imagen& e);
 
 // Magnitud del gradiente de Sobel sobre una imagen de un canal.
 Imagen sobel_secuencial(const Imagen& e);
