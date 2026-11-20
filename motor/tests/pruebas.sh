@@ -49,6 +49,43 @@ for filtro in gris caja; do
         ./comparar "$trabajo/$filtro-par" "$trabajo/$filtro-sec"
 done
 
+echo "Gaussiano y Sobel contra la referencia:"
+for imagen in entrada textura; do
+    ./motor gaussiano "tests/datos/$imagen.ppm" "$trabajo/g-$imagen.ppm" --secuencial
+done
+revisar "gaussiano sobre la imagen de prueba" \
+    ./comparar "$trabajo/g-entrada.ppm" tests/datos/gaussiano.ppm
+revisar "gaussiano sobre la textura de 37x23" \
+    ./comparar "$trabajo/g-textura.ppm" tests/datos/textura_gaussiano.ppm
+./motor sobel tests/datos/gris.pgm "$trabajo/s-entrada.pgm" --secuencial
+./motor sobel tests/datos/textura_gris.pgm "$trabajo/s-textura.pgm" --secuencial
+revisar "sobel sobre la imagen de prueba" \
+    ./comparar "$trabajo/s-entrada.pgm" tests/datos/sobel.pgm
+revisar "sobel sobre la textura de 37x23" \
+    ./comparar "$trabajo/s-textura.pgm" tests/datos/textura_sobel.pgm
+
+echo "Gaussiano y Sobel, paralelo contra secuencial con 1 y 8 hilos:"
+./motor gris "$trabajo/grande.ppm" "$trabajo/grande.pgm"
+./motor gaussiano "$trabajo/grande.ppm" "$trabajo/gauss-sec.ppm" --secuencial
+./motor gaussiano "$trabajo/grande.pgm" "$trabajo/gauss-sec.pgm" --secuencial
+./motor sobel "$trabajo/grande.pgm" "$trabajo/sobel-sec.pgm" --secuencial
+for hilos in 1 8; do
+    for variante in gaussiano gaussiano2p gaussiano5x5; do
+        OMP_NUM_THREADS="$hilos" ./motor "$variante" "$trabajo/grande.ppm" "$trabajo/$variante-$hilos.ppm"
+        revisar "$variante con $hilos hilo(s), tres canales" \
+            ./comparar "$trabajo/$variante-$hilos.ppm" "$trabajo/gauss-sec.ppm"
+        OMP_NUM_THREADS="$hilos" ./motor "$variante" "$trabajo/grande.pgm" "$trabajo/$variante-$hilos.pgm"
+        revisar "$variante con $hilos hilo(s), un canal" \
+            ./comparar "$trabajo/$variante-$hilos.pgm" "$trabajo/gauss-sec.pgm"
+    done
+    OMP_NUM_THREADS="$hilos" ./motor sobel "$trabajo/grande.pgm" "$trabajo/sobel-$hilos.pgm"
+    revisar "sobel con $hilos hilo(s)" \
+        ./comparar "$trabajo/sobel-$hilos.pgm" "$trabajo/sobel-sec.pgm"
+done
+./motor gaussiano5x5 "$trabajo/grande.ppm" "$trabajo/directo-sec.ppm" --secuencial
+revisar "la forma directa de 5x5 coincide con la separable" \
+    ./comparar "$trabajo/directo-sec.ppm" "$trabajo/gauss-sec.ppm"
+
 echo "Filtro desconocido:"
 # El motor sale con código 1 al rechazar la cadena, así que su salida se
 # recoge antes de buscar en ella: con pipefail, la tubería heredaría ese
