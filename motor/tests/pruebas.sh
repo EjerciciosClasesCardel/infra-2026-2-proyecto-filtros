@@ -111,6 +111,14 @@ for caso in "sobel:un canal" "gris,gris:tres canales" "otsu:un canal"; do
     fi
 done
 
+echo "Histogramas, ecualización y Otsu:"
+if ./probar_histograma > "$trabajo/histograma.txt" 2>&1; then
+    cat "$trabajo/histograma.txt"
+else
+    cat "$trabajo/histograma.txt"
+    fallos=$((fallos + 1))
+fi
+
 echo
 if [ "$fallos" -eq 0 ]; then
     echo "todas las pruebas pasaron"
@@ -118,3 +126,5 @@ else
     echo "$fallos prueba(s) fallaron"
 fi
 exit "$fallos"
+
+
