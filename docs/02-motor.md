@@ -278,3 +278,87 @@ la directa con `--secuencial` y luego `gaussiano2p`, `gaussiano` y `sobel` con
 1, 2, 4 y 8 hilos. Deja las filas en `mediciones/localidad.csv` con las mismas
 columnas que `motor.csv`. `bench/tabla.py` lee cualquiera de los dos archivos
 y escribe las tablas de $T(p)$, $S(p)$ y $E(p)$ en Markdown.
+
+## Histograma, ecualización y umbralización de Otsu
+
+### Implementación
+
+Se implementaron tres variantes para calcular el histograma de imágenes en escala de grises:
+
+- **Secuencial:** recorre los píxeles y acumula sus frecuencias en un único histograma.
+- **Paralelo compartido:** varios hilos actualizan un histograma común mediante operaciones atómicas (`atomic update`).
+- **Paralelo privado:** cada hilo construye su propio histograma y, al finalizar, los histogramas parciales se combinan.
+
+La implementación privada reduce la contención entre hilos, mientras que la compartida puede presentar un costo elevado debido a la sincronización de las actualizaciones.
+
+También se implementaron versiones secuenciales y paralelas de la ecualización del histograma y de la umbralización de Otsu.
+
+La ecualización calcula una distribución acumulada de las frecuencias para construir una tabla de consulta (LUT), que transforma las intensidades originales.
+
+Otsu utiliza el histograma para determinar automáticamente un umbral que separa los píxeles en dos clases, buscando maximizar la varianza entre clases.
+
+### Metodología de medición
+
+Las mediciones se realizaron sobre una imagen en escala de grises de 2048 × 2048 píxeles. Se probaron configuraciones de 1, 2, 4 y 8 hilos.
+
+Cada configuración se ejecutó nueve veces. Se descartó la primera ejecución y se calculó la mediana de las ocho restantes para reducir la influencia de variaciones iniciales.
+
+Los tiempos se expresan en milisegundos.
+
+### Resultados de histograma
+
+| Implementación | Hilos | Tiempo (ms) |
+|---|---:|---:|
+| Secuencial | 1 | 2.34 |
+| Compartido | 1 | 41.60 |
+| Compartido | 2 | 17.99 |
+| Compartido | 4 | 30.40 |
+| Compartido | 8 | 23.46 |
+| Privado | 1 | 2.63 |
+| Privado | 2 | 1.17 |
+| Privado | 4 | 0.70 |
+| Privado | 8 | 6.02 |
+
+La implementación privada obtuvo su mejor resultado con cuatro hilos: aproximadamente 0.70 ms frente a 2.34 ms de la implementación secuencial, lo que representa una aceleración aproximada de 3.36 veces.
+
+La implementación compartida presentó tiempos considerablemente mayores. Esto se debe a la contención generada cuando varios hilos intentan actualizar simultáneamente las mismas posiciones del histograma mediante operaciones atómicas.
+
+Con ocho hilos, la versión privada también presentó una disminución del rendimiento. Este comportamiento puede estar relacionado con los costos de ejecución y sincronización, por lo que no se debe asumir que aumentar el número de hilos siempre mejora el tiempo.
+
+### Resultados de ecualización y Otsu
+
+| Operación | Tiempo secuencial (ms) | Mejor tiempo paralelo (ms) | Hilos | Aceleración |
+|---|---:|---:|---:|---:|
+| Ecualización | 8.23 | 1.81 | 8 | 4.54x |
+| Otsu | 9.91 | 4.31 | 4 | 2.30x |
+
+La ecualización obtuvo su mejor tiempo con ocho hilos, mientras que Otsu alcanzó su mejor resultado con cuatro.
+
+En Otsu, el uso de ocho hilos aumentó el tiempo de ejecución. Esto muestra que el paralelismo tiene costos adicionales y que la configuración óptima depende del algoritmo y del tamaño de los datos.
+
+### Comparación de otros filtros
+
+Las mediciones también permiten comparar las implementaciones paralelas de los filtros existentes con sus respectivas versiones secuenciales.
+
+| Filtro | Secuencial (ms) | Mejor paralelo (ms) | Hilos | Aceleración |
+|---|---:|---:|---:|---:|
+| Gris | 23.16 | 3.23 | 8 | 7.18x |
+| Caja | 120.96 | 13.87 | 8 | 8.72x |
+| Gaussiano | 125.26 | 16.59 | 4 | 7.55x |
+| Gaussiano de dos pasadas | 108.99 | 46.95 | 8 | 2.32x |
+| Gaussiano 5x5 | 227.08 | 23.89 | 8 | 9.50x |
+| Sobel | 25.59 | 7.75 | 8 | 3.30x |
+
+Los resultados muestran que el mejor número de hilos varía según el filtro. En particular, el gaussiano obtuvo su mejor resultado con cuatro hilos, mientras que los demás filtros de esta tabla alcanzaron su mejor tiempo con ocho.
+
+### Reproducción de las mediciones
+
+Desde el directorio `motor`, se pueden ejecutar las mediciones con:
+
+```bash
+bash bench/medir.sh /tmp/imagen_medicion.ppm
+python3 bench/tabla.py ../mediciones/motor.csv
+
+```
+
+Las mediciones dependen del procesador, la carga del sistema, la memoria disponible y la configuración de ejecución. Por tanto, los tiempos pueden variar entre equipos y ejecuciones.
