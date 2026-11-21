@@ -1,6 +1,6 @@
 CXX      ?= g++
 CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -fopenmp
-BIN      := motor comparar generar arnes
+BIN      := motor comparar generar arnes probar_histograma
 
 all: $(BIN)
 
@@ -14,6 +14,9 @@ generar: bench/generar.cpp src/imagen.cpp
 	$(CXX) $(CXXFLAGS) -Isrc -o $@ $^
 
 arnes: bench/arnes.cpp src/filtros.cpp src/imagen.cpp
+	$(CXX) $(CXXFLAGS) -Isrc -o $@ $^
+
+probar_histograma: tests/histograma.cpp src/filtros.cpp src/imagen.cpp
 	$(CXX) $(CXXFLAGS) -Isrc -o $@ $^
 
 pruebas: all
