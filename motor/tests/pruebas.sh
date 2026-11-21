@@ -119,6 +119,12 @@ else
     fallos=$((fallos + 1))
 fi
 
+echo "Cadena completa de histograma, ecualización y Otsu:"
+OMP_NUM_THREADS=8 ./motor gris,ecualizar,otsu tests/datos/entrada.ppm "$trabajo/cadena-paralela.pgm"
+./motor gris,ecualizar,otsu tests/datos/entrada.ppm "$trabajo/cadena-secuencial.pgm" --secuencial
+revisar "cadena completa paralela idéntica a la secuencial" \
+    ./comparar "$trabajo/cadena-paralela.pgm" "$trabajo/cadena-secuencial.pgm"
+
 echo
 if [ "$fallos" -eq 0 ]; then
     echo "todas las pruebas pasaron"
