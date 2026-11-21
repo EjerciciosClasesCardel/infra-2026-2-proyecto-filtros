@@ -362,3 +362,147 @@ python3 bench/tabla.py ../mediciones/motor.csv
 ```
 
 Las mediciones dependen del procesador, la carga del sistema, la memoria disponible y la configuración de ejecución. Por tanto, los tiempos pueden variar entre equipos y ejecuciones.
+
+### Análisis de contención y false sharing en los histogramas
+
+La implementación compartida utiliza `atomic update` para proteger las
+actualizaciones concurrentes del histograma. Aunque esto garantiza la
+correctitud, introduce sincronización: varios hilos pueden intentar
+incrementar simultáneamente los mismos contadores. Esta contención explica
+el costo elevado observado en esta variante.
+
+En la implementación privada, cada hilo actualiza su propio histograma y,
+al terminar el recorrido de los píxeles, los histogramas parciales se
+combinan. Cada histograma contiene 256 contadores de tipo `uint64_t`, por
+lo que ocupa 2048 bytes.
+
+Los histogramas se almacenan consecutivamente en un `std::vector`.
+Como 2048 es múltiplo de 64 bytes, sus límites coinciden con límites de
+líneas de caché si la dirección inicial está alineada a 64 bytes. Sin
+embargo, el alineamiento inicial no está garantizado explícitamente por
+esta implementación.
+
+Por tanto, puede existir false sharing en los límites entre histogramas
+si dos hilos modifican datos ubicados en una misma línea de caché. No se
+realizó una medición aislada que permita afirmar que este fenómeno sea la
+causa de la degradación observada con ocho hilos. También pueden influir
+los costos de paralelismo, sincronización y planificación.
+
+Este comportamiento debe distinguirse de la contención de la versión
+compartida: en esta última existe competencia por los mismos contadores y
+se utilizan operaciones atómicas; en la privada, cada hilo tiene su propio
+acumulador y el posible false sharing depende de la distribución física
+de esos acumuladores en memoria.
+
+### Ley de Amdahl y escalabilidad
+
+La ley de Amdahl permite estimar el límite de aceleración de un programa
+paralelo cuando una parte del trabajo no puede ejecutarse simultáneamente.
+
+La aceleración teórica se expresa como:
+
+\[
+S(p)=\frac{1}{s+\frac{1-s}{p}}
+\]
+
+donde:
+
+- \(S(p)\) es la aceleración con \(p\) procesadores.
+- \(s\) es la fracción secuencial del trabajo.
+- \(1-s\) es la fracción que puede ejecutarse en paralelo.
+- \(p\) es la cantidad de procesadores.
+
+En la práctica, el rendimiento también depende de los costos de creación
+y coordinación de hilos, sincronización, acceso a memoria y combinación
+de resultados. Por eso, agregar procesadores no garantiza una reducción
+proporcional del tiempo.
+
+En las mediciones realizadas, el histograma privado alcanzó su mejor
+tiempo con cuatro hilos (0.70 ms), mientras que con ocho hilos su tiempo
+aumentó a 6.02 ms. Otsu también obtuvo su mejor resultado con cuatro
+hilos (4.31 ms), y con ocho hilos presentó un aumento del tiempo.
+
+Estos resultados muestran que la escalabilidad depende de la operación
+y de sus costos asociados. No se calcula una fracción secuencial
+experimental exacta a partir de estos tiempos, ya que las mediciones
+incluyen sobrecostos de ejecución paralela.
+
+### Perfilado con Callgrind
+
+Se utilizó Valgrind Callgrind para analizar la ejecución secuencial de
+Otsu sobre una imagen en escala de grises de 2048 × 2048 píxeles.
+
+Se realizaron dos ejecuciones: una contabilizando instrucciones y otra
+activando la simulación de caché y predicción de saltos mediante las
+opciones `--cache-sim=yes` y `--branch-sim=yes`.
+
+El perfil detallado registró los siguientes resultados:
+
+| Métrica | Resultado |
+|---|---:|
+| Instrucciones ejecutadas | 74,023,742 |
+| Lecturas de datos | 21,639,361 |
+| Escrituras de datos | 8,854,926 |
+| Fallos de caché de datos L1 | 411,623 |
+| Fallos de caché de último nivel | 301,495 |
+| Fallos de caché de instrucciones L1 | 2,641 |
+| Saltos condicionales e indirectos | 8,765,965 |
+| Predicciones incorrectas de saltos | 16,463 |
+
+La función `otsu_secuencial` concentró 71,780,624 instrucciones, equivalentes
+al 96.97 % del total contabilizado. Esto indica que el cálculo de Otsu
+representa la mayor parte del trabajo observado en esta ejecución.
+
+Los fallos de caché de datos L1 representaron aproximadamente el 1.3 %
+de las referencias de datos. Los fallos de último nivel representaron
+aproximadamente el 1.0 %. La tasa global de predicciones incorrectas de
+saltos fue del 0.2 %.
+
+Estos resultados corresponden a una simulación de Callgrind y no a
+contadores físicos obtenidos directamente del procesador. Además, el
+perfilado se realizó sobre la versión secuencial de Otsu, por lo que no
+permite medir directamente la contención entre hilos de las versiones
+paralelas.
+
+Los archivos generados se conservaron en `mediciones/`:
+
+- `callgrind_otsu.out`: perfil inicial.
+- `callgrind_otsu_detallado.out`: perfil con simulación de caché y saltos.
+
+### Gráficas de rendimiento
+
+Se generaron dos gráficas a partir de `mediciones/motor.csv`, utilizando
+la mediana de las ejecuciones después de descartar la primera repetición.
+
+La primera muestra los tiempos de ejecución para las diferentes
+cantidades de hilos:
+
+![Tiempos de ejecución del motor](../mediciones/tiempos_motor.png)
+
+La segunda muestra el speedup con respecto a la ejecución paralela con
+un hilo. La línea discontinua representa la aceleración ideal:
+
+![Speedup del motor](../mediciones/speedup_motor.png)
+
+Estas gráficas permiten observar que la aceleración no es uniforme:
+algunos filtros escalan mejor que otros y, en ciertos casos, aumentar
+el número de hilos puede empeorar el rendimiento.
+
+### Características del equipo de medición
+
+Las mediciones se realizaron en Ubuntu ejecutado sobre WSL2, en un equipo
+con las siguientes características:
+
+| Característica | Valor |
+|---|---|
+| Procesador | Intel Core i3-N305 |
+| Núcleos físicos | 8 |
+| Hilos de hardware | 8 |
+| Procesadores disponibles en WSL | 8 |
+| Memoria total disponible en WSL | Aproximadamente 3.6 GiB |
+| Memoria disponible durante la consulta | Aproximadamente 3.2 GiB |
+
+Los tiempos obtenidos pueden variar según la carga del sistema, los
+recursos asignados a WSL2 y las condiciones de ejecución. Por ello, los
+resultados representan el comportamiento observado en este entorno y
+no deben interpretarse como valores universales para otros equipos.
