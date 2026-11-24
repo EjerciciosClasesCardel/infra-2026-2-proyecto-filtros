@@ -9,7 +9,7 @@ despachador que reparte el lote entre varios trabajadores.
 |---|---|---|
 |Yilmar Mauricio Riascos Moreno | 202459662 | yilmar.riascos@correounivalle.edu.co |
 | Juan esteban perez ramirez | 202459486 | juan.perez.ramirez@correounivalle.edu.co |
-|  |  |  |
+|Marlen Lizeth Estrada López | 202359494 | marlen.estrada@correounivalle.edu.co|
 
 El informe está en [`docs/`](docs/).
 
@@ -82,7 +82,7 @@ A y B escriben el mismo archivo 02-motor.md. Conviene que A sea el dueno del arc
 ---
 
 ## Persona C - Servicio local: trabajador, despachador y Docker Compose
-
+# Marlen
 ### Que implementa
 
 - La capa HTTP del trabajador en Python con las rutas POST /procesar, GET /healthz y GET /readyz. POST /procesar recibe la imagen en crudo con content type application octet stream, la cadena de filtros en la consulta, y responde con la imagen resultante y las cabeceras X-Tiempo-Ms y X-Hilos. Una cadena con un filtro desconocido se rechaza con HTTP 400.
