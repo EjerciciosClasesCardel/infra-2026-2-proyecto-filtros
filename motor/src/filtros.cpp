@@ -266,8 +266,10 @@ Tabla tabla_ecualizacion(const Histograma& h, long long total) {
         if (total == cmin) {
             tabla[v] = static_cast<unsigned char>(v);
         } else {
-            tabla[v] = redondear(static_cast<double>(c[v] - cmin) /
-                                 static_cast<double>(total - cmin) * 255.0);
+            // Una sola división, con el numerador entero: así el cociente
+            // exacto no pierde precisión entre dos operaciones en double.
+            tabla[v] = redondear(static_cast<double>((c[v] - cmin) * 255) /
+                                 static_cast<double>(total - cmin));
         }
     }
     return tabla;

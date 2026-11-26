@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Referencia independiente: implementa las definiciones del enunciado en
-Python puro, sin mirar el C++. Uso: referencia.py gaussiano|sobel entrada salida"""
+Python puro, sin mirar el C++.
+Uso: referencia.py gaussiano|sobel|ecualizar|otsu entrada salida"""
 import sys, math
 from fractions import Fraction
 
@@ -44,6 +45,47 @@ def sobel(w, h, c, px):
             out.append(min(255, redondeo(Fraction(math.sqrt(gx*gx + gy*gy)))))
     return out
 
+def histograma(px):
+    h = [0] * 256
+    for v in px:
+        h[v] += 1
+    return h
+
+def ecualizar(w, h, c, px):
+    hist = histograma(px)
+    N = w * h
+    acum, cmin, visto, total = [], 0, False, 0
+    for v in range(256):
+        total += hist[v]
+        acum.append(total)
+        if not visto and total > 0:
+            cmin, visto = total, True
+    if N == cmin:                       # imagen constante: se deja igual
+        return list(px)
+    return [redondeo(Fraction((acum[v] - cmin) * 255, N - cmin)) for v in px]
+
+def otsu(w, h, c, px):
+    hist = histograma(px)
+    N = w * h
+    suma_total = sum(v * hist[v] for v in range(256))
+    n0, suma0 = 0, 0
+    mejor, umbral = None, 0
+    for t in range(255):                # 0 <= t < 255
+        n0 += hist[t]
+        suma0 += t * hist[t]
+        n1 = N - n0
+        if n0 == 0 or n1 == 0:
+            continue
+        mu0 = Fraction(suma0, n0)
+        mu1 = Fraction(suma_total - suma0, n1)
+        varianza = Fraction(n0, N) * Fraction(n1, N) * (mu0 - mu1) ** 2
+        if mejor is None or varianza > mejor:   # con empate gana el más bajo
+            mejor, umbral = varianza, t
+    return [0 if v <= umbral else 255 for v in px]
+
 f, ent, sal = sys.argv[1:4]
 w, h, c, px = leer(ent)
-escribir(sal, w, h, c, gaussiano(w, h, c, px) if f == 'gaussiano' else sobel(w, h, c, px))
+filtros = {'gaussiano': gaussiano, 'sobel': sobel, 'ecualizar': ecualizar, 'otsu': otsu}
+if f not in filtros:
+    sys.exit('filtro desconocido: ' + f)
+escribir(sal, w, h, c, filtros[f](w, h, c, px))
