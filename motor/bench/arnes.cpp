@@ -23,6 +23,9 @@ Imagen aplicar(const std::string& filtro, const Imagen& entrada, bool secuencial
     if (filtro == "gaussiano") {
         return secuencial ? gaussiano_secuencial(entrada) : gaussiano_paralelo(entrada);
     }
+    // Solo existe en una versión (un hilo): es la referencia contra la que se
+    // compara el gaussiano separable.
+    if (filtro == "gaussiano_directo") return gaussiano_directo(entrada);
     if (filtro == "sobel") return secuencial ? sobel_secuencial(entrada) : sobel_paralelo(entrada);
     if (filtro == "otsu") return secuencial ? otsu_secuencial(entrada) : otsu_paralelo(entrada);
     throw std::runtime_error("filtro desconocido: " + filtro);
@@ -51,6 +54,9 @@ int main(int argc, char** argv) {
             repeticiones = std::atoi(arg.c_str());
         }
     }
+    // La forma directa es siempre de un hilo: se marca como secuencial para que
+    // la columna "hilos" del CSV diga 1 y no el valor de OMP_NUM_THREADS.
+    if (filtro == "gaussiano_directo") secuencial = true;
     if (repeticiones < 1) {
         std::cerr << "arnes: repeticiones tiene que ser al menos 1\n";
         return 2;

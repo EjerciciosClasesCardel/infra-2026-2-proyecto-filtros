@@ -19,6 +19,11 @@ Imagen caja_paralelo(const Imagen& e);
 Imagen gaussiano_secuencial(const Imagen& e);
 Imagen gaussiano_paralelo(const Imagen& e);
 
+// Forma directa 5x5 del gaussiano (25 multiplicaciones por píxel), un solo
+// hilo. No forma parte de la cadena ni del servicio: existe únicamente para
+// comparar su tiempo contra el de la forma separable con un hilo.
+Imagen gaussiano_directo(const Imagen& e);
+
 // Magnitud del gradiente de Sobel sobre una imagen de un canal.
 Imagen sobel_secuencial(const Imagen& e);
 Imagen sobel_paralelo(const Imagen& e);

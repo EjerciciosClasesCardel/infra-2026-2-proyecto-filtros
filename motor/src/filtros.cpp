@@ -1,6 +1,15 @@
 #include "filtros.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <stdexcept>
+#include <vector>
+
+// Los filtros gaussiano y Sobel viven en sus propios archivos y trabajan sobre
+// buffers crudos de un canal (namespace estencil). Aqui abajo se adaptan a la
+// interfaz con Imagen que usan main.cpp y el arnes.
+#include "gaussiano.hpp"
+#include "sobel.hpp"
 
 Imagen gris_secuencial(const Imagen& e) {
     if (e.canales != 3) throw std::runtime_error("gris espera una imagen de tres canales");
@@ -82,20 +91,66 @@ Imagen caja_paralelo(const Imagen& e) {
     return s;
 }
 
-Imagen gaussiano_secuencial(const Imagen&) {
-    throw std::runtime_error("gaussiano: sin implementar");
+namespace {
+
+// Firma comun de los filtros de un canal (ver gaussiano.hpp y sobel.hpp).
+using FiltroPlano = void (*)(const std::uint8_t*, int, int, std::uint8_t*);
+
+// Aplica un filtro de UN canal a una Imagen de uno o tres canales. Con un canal
+// se llama directo sobre el buffer. Con tres (color) se separa cada canal en
+// un plano, se filtra por separado y se vuelve a intercalar R G B, igual que
+// hace caja_* (que tambien trata cada canal por su lado).
+Imagen aplicar_por_canal(const Imagen& e, FiltroPlano f) {
+    if (e.canales != 1 && e.canales != 3) {
+        throw std::runtime_error("el filtro espera una imagen de uno o tres canales");
+    }
+    Imagen s;
+    s.ancho = e.ancho;
+    s.alto = e.alto;
+    s.canales = e.canales;
+    s.datos.resize(e.datos.size());
+
+    if (e.canales == 1) {
+        f(e.datos.data(), e.ancho, e.alto, s.datos.data());
+        return s;
+    }
+
+    const std::size_t n = static_cast<std::size_t>(e.ancho) * e.alto;
+    std::vector<std::uint8_t> plano_in(n), plano_out(n);
+    for (int c = 0; c < 3; ++c) {
+        for (std::size_t i = 0; i < n; ++i) plano_in[i] = e.datos[i * 3 + c];
+        f(plano_in.data(), e.ancho, e.alto, plano_out.data());
+        for (std::size_t i = 0; i < n; ++i) s.datos[i * 3 + c] = plano_out[i];
+    }
+    return s;
 }
 
-Imagen gaussiano_paralelo(const Imagen&) {
-    throw std::runtime_error("gaussiano: sin implementar");
+}  // namespace
+
+// Gaussiano separable 5x5 (dos pasadas). Ver gaussiano.cpp.
+Imagen gaussiano_secuencial(const Imagen& e) {
+    return aplicar_por_canal(e, estencil::gaussiano_secuencial);
 }
 
-Imagen sobel_secuencial(const Imagen&) {
-    throw std::runtime_error("sobel: sin implementar");
+Imagen gaussiano_paralelo(const Imagen& e) {
+    return aplicar_por_canal(e, estencil::gaussiano_paralelo);
 }
 
-Imagen sobel_paralelo(const Imagen&) {
-    throw std::runtime_error("sobel: sin implementar");
+// Forma directa 5x5, solo para la comparacion de tiempos del informe.
+Imagen gaussiano_directo(const Imagen& e) {
+    return aplicar_por_canal(e, estencil::gaussiano_directo_5x5);
+}
+
+// Sobel solo tiene sentido sobre grises: main.cpp ya rechaza la cadena si le
+// llega color, y aqui se protege tambien quien llame al filtro directamente.
+Imagen sobel_secuencial(const Imagen& e) {
+    if (e.canales != 1) throw std::runtime_error("sobel espera una imagen de un canal");
+    return aplicar_por_canal(e, estencil::sobel_secuencial);
+}
+
+Imagen sobel_paralelo(const Imagen& e) {
+    if (e.canales != 1) throw std::runtime_error("sobel espera una imagen de un canal");
+    return aplicar_por_canal(e, estencil::sobel_paralelo);
 }
 
 Imagen otsu_secuencial(const Imagen&) {
