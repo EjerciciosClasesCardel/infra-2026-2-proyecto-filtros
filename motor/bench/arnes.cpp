@@ -18,6 +18,18 @@
 
 namespace {
 
+// Los histogramas no devuelven una imagen: se envuelven en una de 256x1 para
+// que el compilador no elimine la llamada.
+Imagen resumen(const Histograma& h) {
+    Imagen r;
+    r.ancho = 256;
+    r.alto = 1;
+    r.canales = 1;
+    r.datos.resize(256);
+    for (int v = 0; v < 256; ++v) r.datos[v] = static_cast<unsigned char>(h[v] & 0xFF);
+    return r;
+}
+
 Imagen aplicar(const std::string& filtro, const Imagen& entrada, bool secuencial) {
     if (filtro == "gris") return secuencial ? gris_secuencial(entrada) : gris_paralelo(entrada);
     if (filtro == "caja") return secuencial ? caja_secuencial(entrada) : caja_paralelo(entrada);
@@ -30,6 +42,19 @@ Imagen aplicar(const std::string& filtro, const Imagen& entrada, bool secuencial
     }
     if (filtro == "sobel") return secuencial ? sobel_secuencial(entrada) : sobel_paralelo(entrada);
     if (filtro == "otsu") return secuencial ? otsu_secuencial(entrada) : otsu_paralelo(entrada);
+    if (filtro == "ecualizar") {
+        return secuencial ? ecualizar_secuencial(entrada) : ecualizar_paralelo(entrada);
+    }
+    if (filtro == "histograma-secuencial") return resumen(histograma_secuencial(entrada));
+    if (filtro == "histograma-compartido") return resumen(histograma_compartido(entrada));
+    if (filtro == "histograma-privado") return resumen(histograma_privado(entrada));
+    if (filtro == "histograma-relleno") return resumen(histograma_privado_relleno(entrada));
+    if (filtro == "cadena") {   // entrada: PPM de color
+        Imagen s = aplicar("gris", entrada, secuencial);
+        s = aplicar("gaussiano", s, secuencial);
+        s = aplicar("sobel", s, secuencial);
+        return aplicar("otsu", s, secuencial);
+    }
     throw std::runtime_error("filtro desconocido: " + filtro);
 }
 

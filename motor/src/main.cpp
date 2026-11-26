@@ -25,7 +25,7 @@ std::vector<std::string> partir(const std::string& lista) {
 
 bool conocido(const std::string& filtro) {
     return filtro == "gris" || filtro == "caja" || filtro == "gaussiano" ||
-           filtro == "sobel" || filtro == "otsu";
+           filtro == "sobel" || filtro == "otsu"|| filtro == "ecualizar";
 }
 
 Imagen aplicar(const std::string& filtro, const Imagen& entrada, bool secuencial) {
@@ -36,6 +36,7 @@ Imagen aplicar(const std::string& filtro, const Imagen& entrada, bool secuencial
     }
     if (filtro == "sobel") return secuencial ? sobel_secuencial(entrada) : sobel_paralelo(entrada);
     if (filtro == "otsu") return secuencial ? otsu_secuencial(entrada) : otsu_paralelo(entrada);
+    if (filtro == "ecualizar") return secuencial ? ecualizar_secuencial(entrada) : ecualizar_paralelo(entrada);
     throw std::runtime_error("filtro desconocido: " + filtro);
 }
 
@@ -55,7 +56,7 @@ std::string cadena_invalida(const std::vector<std::string>& filtros, int canales
         if (f == "gris") {
             if (actuales != 3) return "gris necesita una imagen de tres canales";
             actuales = 1;
-        } else if (f == "sobel" || f == "otsu") {
+        } else if (f == "sobel" || f == "otsu"|| f == "ecualizar") {
             if (actuales != 1) return f + " necesita una imagen de un canal";
         }
     }
