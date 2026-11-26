@@ -49,6 +49,52 @@ for filtro in gris caja; do
         ./comparar "$trabajo/$filtro-par" "$trabajo/$filtro-sec"
 done
 
+echo "Gaussiano y Sobel, pruebas internas:"
+# Separable contra directo 5x5, tamaños degenerados y paralelo contra
+# secuencial con 1, 2, 4 y 8 hilos (ver tests/test_estencil.cpp).
+revisar "separable igual al directo 5x5 y paralelo igual al secuencial" ./test_estencil
+
+echo "Gaussiano y Sobel, valores calculados a mano:"
+# Un 255 en el centro de una imagen 5x5 de grises. Cada pixel de salida vale
+# 255 * wa * wb / 256, con pesos 6, 4 y 1 segun la distancia al centro, y
+# redondeado: 36, 24, 16, 6, 4 y 1 (en hexadecimal 24 18 10 06 04 01).
+{ printf 'P5\n5 5\n255\n'; head -c 12 /dev/zero; printf '\xff'; head -c 12 /dev/zero; } \
+    > "$trabajo/impulso.pgm"
+{ printf 'P5\n5 5\n255\n'
+  printf '\x01\x04\x06\x04\x01'
+  printf '\x04\x10\x18\x10\x04'
+  printf '\x06\x18\x24\x18\x06'
+  printf '\x04\x10\x18\x10\x04'
+  printf '\x01\x04\x06\x04\x01'; } > "$trabajo/impulso-esperado.pgm"
+./motor gaussiano "$trabajo/impulso.pgm" "$trabajo/impulso-gauss.pgm"
+revisar "gaussiano sobre un impulso 5x5" \
+    ./comparar "$trabajo/impulso-gauss.pgm" "$trabajo/impulso-esperado.pgm"
+
+# Borde vertical de 4x3 con columnas [0 0 10 10]. En las dos columnas del
+# centro gx = (1+2+1)*(10-0) = 40; en los extremos la repeticion del borde lo
+# anula, y gy es 0 porque las tres filas son iguales.
+{ printf 'P5\n4 3\n255\n'
+  printf '\x00\x00\x0a\x0a'; printf '\x00\x00\x0a\x0a'; printf '\x00\x00\x0a\x0a'; } \
+    > "$trabajo/borde.pgm"
+{ printf 'P5\n4 3\n255\n'
+  printf '\x00\x28\x28\x00'; printf '\x00\x28\x28\x00'; printf '\x00\x28\x28\x00'; } \
+    > "$trabajo/borde-esperado.pgm"
+./motor sobel "$trabajo/borde.pgm" "$trabajo/borde-sobel.pgm"
+revisar "sobel sobre un borde vertical 4x3" \
+    ./comparar "$trabajo/borde-sobel.pgm" "$trabajo/borde-esperado.pgm"
+
+echo "Gaussiano y Sobel, paralelo contra secuencial con 1 y 8 hilos, 512x512:"
+for cadena in gaussiano gris,gaussiano gris,sobel gris,gaussiano,sobel; do
+    etiqueta="${cadena//,/-}"
+    ./motor "$cadena" "$trabajo/grande.ppm" "$trabajo/$etiqueta-sec" --secuencial
+    for hilos in 1 8; do
+        OMP_NUM_THREADS="$hilos" ./motor "$cadena" "$trabajo/grande.ppm" \
+            "$trabajo/$etiqueta-par$hilos"
+        revisar "$cadena idéntico con $hilos hilo(s)" \
+            ./comparar "$trabajo/$etiqueta-par$hilos" "$trabajo/$etiqueta-sec"
+    done
+done
+
 echo "Filtro desconocido:"
 # El motor sale con código 1 al rechazar la cadena, así que su salida se
 # recoge antes de buscar en ella: con pipefail, la tubería heredaría ese
